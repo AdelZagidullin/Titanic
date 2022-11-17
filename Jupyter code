@@ -1,0 +1,182 @@
+import pandas as pd
+import seaborn as sns
+from sklearn import tree
+from sklearn import preprocessing
+df=pd.read_csv('c:/Users/AdelZag/Downloads/Python Project/Titanic/train.csv', delimiter=',')
+df.info()
+---------------------------------------------------------------------------
+FileNotFoundError                         Traceback (most recent call last)
+/tmp/ipykernel_20/4160357530.py in <module>
+----> 1 df=pd.read_csv('c:/Users/AdelZag/Downloads/Python Project/Titanic/train.csv', delimiter=',')
+      2 df.info()
+
+/opt/conda/lib/python3.7/site-packages/pandas/util/_decorators.py in wrapper(*args, **kwargs)
+    309                     stacklevel=stacklevel,
+    310                 )
+--> 311             return func(*args, **kwargs)
+    312 
+    313         return wrapper
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/readers.py in read_csv(filepath_or_buffer, sep, delimiter, header, names, index_col, usecols, squeeze, prefix, mangle_dupe_cols, dtype, engine, converters, true_values, false_values, skipinitialspace, skiprows, skipfooter, nrows, na_values, keep_default_na, na_filter, verbose, skip_blank_lines, parse_dates, infer_datetime_format, keep_date_col, date_parser, dayfirst, cache_dates, iterator, chunksize, compression, thousands, decimal, lineterminator, quotechar, quoting, doublequote, escapechar, comment, encoding, encoding_errors, dialect, error_bad_lines, warn_bad_lines, on_bad_lines, delim_whitespace, low_memory, memory_map, float_precision, storage_options)
+    584     kwds.update(kwds_defaults)
+    585 
+--> 586     return _read(filepath_or_buffer, kwds)
+    587 
+    588 
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/readers.py in _read(filepath_or_buffer, kwds)
+    480 
+    481     # Create the parser.
+--> 482     parser = TextFileReader(filepath_or_buffer, **kwds)
+    483 
+    484     if chunksize or iterator:
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/readers.py in __init__(self, f, engine, **kwds)
+    809             self.options["has_index_names"] = kwds["has_index_names"]
+    810 
+--> 811         self._engine = self._make_engine(self.engine)
+    812 
+    813     def close(self):
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/readers.py in _make_engine(self, engine)
+   1038             )
+   1039         # error: Too many arguments for "ParserBase"
+-> 1040         return mapping[engine](self.f, **self.options)  # type: ignore[call-arg]
+   1041 
+   1042     def _failover_to_python(self):
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/c_parser_wrapper.py in __init__(self, src, **kwds)
+     49 
+     50         # open handles
+---> 51         self._open_handles(src, kwds)
+     52         assert self.handles is not None
+     53 
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/parsers/base_parser.py in _open_handles(self, src, kwds)
+    227             memory_map=kwds.get("memory_map", False),
+    228             storage_options=kwds.get("storage_options", None),
+--> 229             errors=kwds.get("encoding_errors", "strict"),
+    230         )
+    231 
+
+/opt/conda/lib/python3.7/site-packages/pandas/io/common.py in get_handle(path_or_buf, mode, encoding, compression, memory_map, is_text, errors, storage_options)
+    705                 encoding=ioargs.encoding,
+    706                 errors=errors,
+--> 707                 newline="",
+    708             )
+    709         else:
+
+FileNotFoundError: [Errno 2] No such file or directory: 'c:/Users/AdelZag/Downloads/Python Project/Titanic/train.csv'
+df["Embarked"].value_counts()
+Поскольку кол-во классов 'S' наибольшее, заменим пропуски на данный класс
+
+df["Embarked"] = df["Embarked"].fillna("S")
+df["Embarked"]
+df.info()
+В столбце 'Cabin' много пропусков. Удалим этот столбец
+
+del df["Cabin"]
+df.info()
+Разберемся с возрастом. Для этого классифицируем людей на основе их имени. Извлечем префиксы (Mr, Miss, Mrs) из каждого имени
+
+df['Salutation'] = df.Name.apply(lambda name: name.split(',')[1].split('.')[0].strip())
+df["Salutation"].value_counts()
+Сгруппируем по полу и классам
+
+Group = df.groupby(['Sex', 'Pclass'])
+Заменим в столбце возраст пропущенные значения на медиану
+
+df["Age"] = Group.Age.apply(lambda x: x.fillna(x.median()))
+df["Age"].isna().sum()
+df.tail()
+Построим графики зависимости
+
+import seaborn as sns
+sns.barplot(y = df["Survived"], x = df["Sex"])
+sns.barplot(x = df["Pclass"], y = df["Survived"])
+Создадим столбец категория по стоимости. Чем больше заплатили, тем больше вероятность выживания
+
+df['Fare_Category'] = pd.cut(df['Fare'], bins=[0,7.90,14.45,31.28,120], labels=['Low','Mid', 'High_Mid','High'])
+df['Fare_Category']
+sns.barplot(x = df["Fare_Category"], y = df["Survived"])
+df.head()
+Создадим столбец Семья
+
+df["Family"] = df.SibSp + df.Parch
+df.info()
+sns.set_theme()
+sns.histplot(df, x ="Family", hue = "Survived")
+По графику видно, что человеку без семьи вероятность выжить больше
+
+df['Is_Alone'] = df.Family == 0
+df
+Закодируем категориальные признаки
+
+from sklearn import preprocessing
+coder = preprocessing.LabelEncoder()
+for name in ["Sex", "Embarked", "Fare_Category", "Is_Alone"]:
+    coder.fit(df[name])
+    df[name]=coder.transform(df[name])
+df.head()
+Узнаем важность каждого признака в задаче предсказания выживания. Уберем столбец Name, SibSp, Parch, Fare, Ticket, Salution
+
+df.columns
+df_cut = df[['PassengerId', 'Survived', 'Pclass', 'Sex', 'Age', 'Embarked', 'Fare_Category', 'Family', "Is_Alone"]]
+df_cut.info()
+from sklearn.ensemble import ExtraTreesClassifier
+selector=ExtraTreesClassifier()
+result=selector.fit(df_cut[df_cut.columns], df_cut['Survived'])
+features_table= pd.DataFrame(result.feature_importances_, index =df_cut.columns,
+                                              columns =['importance'])
+print(features_table) 
+features_table.sort_values(by='importance', ascending=False)
+Признаки PassengerId и Embarked не так важны. Их можно исключить
+
+df_train = df[['Survived', 'Pclass', 'Sex', 'Age', 'Fare_Category', 'Is_Alone']]
+from sklearn import tree
+model=tree.DecisionTreeClassifier(max_depth=5)
+model.fit(df_train[['Pclass', 'Sex', 'Age', 'Fare_Category', 'Is_Alone']].values.reshape(-1,5), y=df_train['Survived'].values)
+Загружаем тестовую выбоку
+
+df_test=pd.read_csv('c:/Users/AdelZag/Downloads/Python Project/Titanic/test.csv', delimiter=',')
+df_test.info()
+Сделаем все преобразования, как для тренеровочной выборки
+
+df_test.drop(columns = ["Cabin"], inplace = True)
+df_test['Salutation'] = df_test.Name.apply(lambda name: name.split(',')[1].split('.')[0].strip())
+Group = df_test.groupby(['Sex', 'Pclass'])
+df_test["Age"] = Group.Age.apply(lambda x: x.fillna(x.median()))
+df_test.info()
+df_test.Fare.fillna(df_test.Fare.mode()[0], inplace = True)
+df_test.info()
+df_test['Fare_Category'] = pd.cut(df_test['Fare'], bins=[0,7.90,14.45,31.28,120], labels=['Low','Mid', 'High_Mid','High'])
+df_test["Family"] = df_test.SibSp + df_test.Parch
+df_test["Is_Alone"] = df_test.Family == 0
+df_test
+for name in ["Sex", "Fare_Category", "Is_Alone"]:
+    coder.fit(df_test[name])
+    df_test[name]=coder.transform(df_test[name])
+df_test_cut = df_test[['Pclass', 'Sex', 'Age', 'Fare_Category', 'Is_Alone']]
+df_test_cut
+Запускаем нашу модель для тестовой выборки
+
+df_test_cut['Predicted']=model.predict(df_test_cut[['Pclass', 'Sex', 'Age', 'Fare_Category', 'Is_Alone']].values.reshape(-1,5))
+df_test_cut['Predicted'].value_counts()
+Загружаем проверочную выборку
+
+df_gender = pd.read_csv('c:/Users/AdelZag/Downloads/Python Project/Titanic/gender_submission.csv', delimiter=',')
+df_gender.Survived.value_counts()
+Строим матрицу сопряженности
+
+pd.crosstab(df_test_cut['Predicted'],df_gender['Survived'])
+Проверяем на mean_absolute_error
+
+from sklearn.metrics import mean_absolute_error
+mean_absolute_error(df_test_cut['Predicted'],df_gender['Survived'])
+Выгружаем в файл
+
+pred = pd.DataFrame(df_test_cut['Predicted'])
+datasets = pd.concat([df_gender["PassengerId"], pred], axis = 1)
+datasets.columns = ["PassengerId", "Survived"]
+datasets.to_csv("c:/Users/AdelZag/Downloads/Python Project/Titanic/titanic_ver2.csv", index = False)
+ 
